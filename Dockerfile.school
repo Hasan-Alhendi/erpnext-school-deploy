@@ -1,0 +1,32 @@
+FROM horizon/erpnext-arabic:v16.17.0-education
+
+ARG WOOD_FACTORY_REPO=https://github.com/Hasan-Alhendi/wood_factory.git
+ARG SCHOOL_MANAGEMENT_REPO=https://github.com/Hasan-Alhendi/School-management.git
+
+USER root
+
+RUN apt-get update \
+    && apt-get install -y git curl ca-certificates gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+USER frappe
+WORKDIR /home/frappe/frappe-bench
+
+RUN git clone --depth 1 ${WOOD_FACTORY_REPO} apps/wood_factory \
+    && ./env/bin/pip install -e apps/wood_factory \
+    && git clone --depth 1 ${SCHOOL_MANAGEMENT_REPO} apps/school_management \
+    && ./env/bin/pip install -e apps/school_management \
+    && ./env/bin/python - <<'PY'
+from pathlib import Path
+
+p = Path("sites/apps.txt")
+apps = p.read_text().splitlines()
+
+for app in ["wood_factory", "school_management"]:
+    if app not in apps:
+        apps.append(app)
+
+p.write_text("\n".join(apps) + "\n")
+PY
+
+USER frappe
